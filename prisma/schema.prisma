@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  STAFF
+  ATTENDEE
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+  REFUNDED
+  EXPIRED
+}
+
+enum TicketStatus {
+  VALID
+  CHECKED_IN
+  VOID
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  role          Role      @default(ATTENDEE)
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  orders        Order[]
+  checkIns      CheckIn[]
+  accounts      Account[]
+  sessions      Session[]
+}
+
+// --- Auth.js adapter models ---
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+// --- Ticketing domain ---
+model Event {
+  id            String       @id @default(cuid())
+  slug          String       @unique
+  title         String
+  description   String
+  venue         String
+  startsAt      DateTime
+  endsAt        DateTime
+  status        EventStatus  @default(DRAFT)
+  coverImageUrl String?
+  capacity      Int?
+  ticketTypes   TicketType[]
+  orders        Order[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([status, startsAt])
+}
+
+model TicketType {
+  id           String    @id @default(cuid())
+  eventId      String
+  event        Event     @relation(fields: [eventId], references: [id])
+  name         String
+  priceInPence Int
+  quantity     Int
+  sold         Int       @default(0)
+  maxPerOrder  Int       @default(10)
+  salesStart   DateTime?
+  salesEnd     DateTime?
+  tickets      Ticket[]
+  orderItems   OrderItem[]
+
+  @@index([eventId])
+}
+
+model Order {
+  id                    String      @id @default(cuid())
+  eventId               String
+  event                 Event       @relation(fields: [eventId], references: [id])
+  userId                String?
+  user                  User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email                 String
+  status                OrderStatus @default(PENDING)
+  totalInPence          Int
+  stripeCheckoutId      String?     @unique
+  stripePaymentIntentId String?     @unique
+  idempotencyKey        String      @unique
+  expiresAt             DateTime?
+  items                 OrderItem[]
+  tickets               Ticket[]
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  @@index([eventId, status])
+  @@index([status, expiresAt])
+  @@index([email])
+}
+
+// Quantity per ticket type in an order — needed to release inventory on expiry/refund.
+model OrderItem {
+  id           String     @id @default(cuid())
+  orderId      String
+  order        Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  ticketTypeId String
+  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
+  quantity     Int
+  priceInPence Int
+
+  @@unique([orderId, ticketTypeId])
+}
+
+model Ticket {
+  id           String       @id @default(cuid())
+  orderId      String
+  order        Order        @relation(fields: [orderId], references: [id])
+  ticketTypeId String
+  ticketType   TicketType   @relation(fields: [ticketTypeId], references: [id])
+  code         String       @unique
+  attendeeName String?
+  status       TicketStatus @default(VALID)
+  checkIn      CheckIn?
+  createdAt    DateTime     @default(now())
+
+  @@index([orderId])
+}
+
+model CheckIn {
+  id       String   @id @default(cuid())
+  ticketId String   @unique
+  ticket   Ticket   @relation(fields: [ticketId], references: [id])
+  byUserId String
+  byUser   User     @relation(fields: [byUserId], references: [id])
+  at       DateTime @default(now())
+}
+
+model WebhookEvent {
+  id          String   @id
+  type        String
+  processedAt DateTime @default(now())
+}
+
+model AuditLog {
+  id       String   @id @default(cuid())
+  actorId  String?
+  action   String
+  entity   String
+  entityId String
+  meta     Json?
+  at       DateTime @default(now())
+
+  @@index([at])
+}
+
+// Postgres-backed rate limiter fallback (used when Upstash env vars are absent).
+model RateLimitHit {
+  id  BigInt   @id @default(autoincrement())
+  key String
+  at  DateTime @default(now())
+
+  @@index([key, at])
+}

@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Canva-derived token set: light-only interface, purple #a370fc primary,
+ * pure black text on white, #1a1a1a muted text, flat edges (4px radius,
+ * borders instead of shadows), 8px spacing rhythm.
+ */
+@layer base {
+  :root {
+    --background: 0 0% 100%; /* #ffffff */
+    --foreground: 0 0% 0%; /* #000000 */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --primary: 262 96% 71%; /* #a370fc */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 0%;
+    --muted: 0 0% 96%; /* derived neutral: ~rgba(0,0,0,0.05) on white */
+    --muted-foreground: 0 0% 10%; /* #1a1a1a */
+    --accent: 262 96% 96%; /* faint purple tint for hovers/active rows */
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 72% 42%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 72% 26%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 40%;
+    --warning-foreground: 0 0% 100%;
+    --border: 0 0% 88%;
+    --input: 0 0% 80%;
+    --ring: 262 96% 71%;
+    --radius: 0.25rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  /* Visible purple focus ring on every interactive element (a11y spec). */
+  :focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
