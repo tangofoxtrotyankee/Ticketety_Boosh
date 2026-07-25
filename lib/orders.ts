@@ -5,10 +5,11 @@ import { sendOrderConfirmationEmail } from "@/lib/email";
 import { logger } from "@/lib/logger";
 
 /**
- * Orders hold inventory for 30 minutes. Stripe requires Checkout Session
- * expiry to be at least 30 minutes out, so the hold matches that minimum.
+ * Orders hold inventory for 35 minutes. Stripe requires Checkout Session
+ * expiry to be at least 30 minutes after creation; the extra margin covers
+ * the time between computing the hold and calling Stripe.
  */
-export const ORDER_HOLD_MINUTES = 30;
+export const ORDER_HOLD_MINUTES = 35;
 
 export class SoldOutError extends Error {
   constructor(public ticketTypeName: string) {

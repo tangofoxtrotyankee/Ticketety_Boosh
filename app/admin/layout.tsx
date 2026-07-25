@@ -32,6 +32,9 @@ export default async function AdminLayout({
         <Link href="/admin/audit" className="hover:text-primary">
           Audit log
         </Link>
+        <Link href="/admin/gdpr" className="hover:text-primary">
+          GDPR
+        </Link>
       </nav>
       {children}
     </div>
