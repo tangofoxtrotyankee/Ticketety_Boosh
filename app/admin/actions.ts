@@ -209,6 +209,70 @@ export async function updateTicketType(
   redirect(editPath);
 }
 
+export async function refundOrder(eventId: string, orderId: string) {
+  const session = await requireRole("ADMIN");
+  const eventPath = `/admin/events/${eventId}`;
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order || order.eventId !== eventId) {
+    backWithError(eventPath, "Order not found.");
+  }
+  if (order.status !== "PAID") {
+    backWithError(eventPath, "Only paid orders can be refunded.");
+  }
+
+  if (order.stripePaymentIntentId) {
+    // Paid via Stripe: request the refund; the charge.refunded webhook
+    // completes the state change (REFUNDED + tickets void + inventory back).
+    try {
+      const { getStripe } = await import("@/lib/stripe");
+      await getStripe().refunds.create(
+        { payment_intent: order.stripePaymentIntentId },
+        { idempotencyKey: `refund-${order.id}` }
+      );
+    } catch (err) {
+      logger.error({ err, orderId }, "stripe refund failed");
+      backWithError(eventPath, "Stripe refund failed — check the Stripe dashboard.");
+    }
+    await audit({
+      actorId: session.user.id,
+      action: "order.refund.requested",
+      entity: "Order",
+      entityId: orderId,
+      meta: { totalInPence: order.totalInPence },
+    });
+    redirect(
+      `${eventPath}?notice=${encodeURIComponent(
+        "Refund requested — the order will update once Stripe confirms."
+      )}`
+    );
+  }
+
+  // Free order: nothing to refund with Stripe, void immediately.
+  const { releaseInventory } = await import("@/lib/orders");
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: orderId },
+      data: { status: "REFUNDED" },
+    });
+    await tx.ticket.updateMany({
+      where: { orderId },
+      data: { status: "VOID" },
+    });
+    await releaseInventory(tx, orderId);
+  });
+  await audit({
+    actorId: session.user.id,
+    action: "order.refund.completed",
+    entity: "Order",
+    entityId: orderId,
+    meta: { totalInPence: 0, free: true },
+  });
+  revalidatePath(eventPath);
+  redirect(
+    `${eventPath}?notice=${encodeURIComponent("Order cancelled and tickets voided.")}`
+  );
+}
+
 export async function deleteTicketType(eventId: string, ticketTypeId: string) {
   const session = await requireRole("ADMIN");
   const editPath = `/admin/events/${eventId}/edit`;

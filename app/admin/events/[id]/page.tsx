@@ -192,7 +192,7 @@ export default async function AdminEventDetailPage({
       </div>
 
       <h2 className="text-xl font-semibold">Orders &amp; attendees</h2>
-      <OrdersTable orders={event.orders} />
+      <OrdersTable eventId={event.id} orders={event.orders} />
     </div>
   );
 }

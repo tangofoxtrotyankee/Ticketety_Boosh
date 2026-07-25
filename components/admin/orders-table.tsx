@@ -9,6 +9,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { RefundButton } from "@/components/admin/refund-button";
+
 type OrderWithTickets = Order & {
   tickets: Array<
     Ticket & { checkIn: CheckIn | null; ticketType: { name: string } }
@@ -23,7 +25,13 @@ const statusVariant = {
   EXPIRED: "secondary",
 } as const;
 
-export function OrdersTable({ orders }: { orders: OrderWithTickets[] }) {
+export function OrdersTable({
+  eventId,
+  orders,
+}: {
+  eventId: string;
+  orders: OrderWithTickets[];
+}) {
   if (orders.length === 0) {
     return <p className="text-sm text-muted-foreground">No orders yet.</p>;
   }
@@ -75,7 +83,7 @@ export function OrdersTable({ orders }: { orders: OrderWithTickets[] }) {
             </TableCell>
             <TableCell className="text-right">
               {order.status === "PAID" && (
-                <span className="text-xs text-muted-foreground">—</span>
+                <RefundButton eventId={eventId} orderId={order.id} />
               )}
             </TableCell>
           </TableRow>
