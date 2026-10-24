@@ -48,7 +48,7 @@ Key correctness properties:
 
 ### 1. Prerequisites
 
-- Node 20+
+- Node 24
 - A [Neon](https://neon.tech) Postgres project (or any Postgres)
 - [Stripe](https://stripe.com) account + [Stripe CLI](https://stripe.com/docs/stripe-cli)
 - [Resend](https://resend.com) API key (emails); any verified sender works for dev
